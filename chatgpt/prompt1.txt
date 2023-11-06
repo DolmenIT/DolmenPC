@@ -1,0 +1,22 @@
+Bonjour,
+
+Je veux coder un serveur web avec nodejs pour Stream un écran de mes écrans d'ordinateur et contrôler la souris et le clavier.
+
+J'aimerais pour ca me connecter a une adresse tel que http://192.168.0.3:8080/dolmenpc/?md5key=098f6bcd4621d373cade4e832627b4f6&screen=1&frame=123456
+
+le parametre md5Key étant la clé de vérification donnée a l'identification et correspondant a l'ip
+le parametre screen indiquant le numéro de l'écran ou récupérer la data
+le parametre frame indiquant la dernière frame connu par le navigateur
+
+Le serveur répondra par exemple un paquet binaire :
+F8TX01TY01CFFF
+F8TX01TY02CFFF
+F8TX01TY03CFFF
+... etc
+ou
+80101FFF0102FFF0103FFF ... etc
+
+F8 pour facteur = 8
+TX01 pour tile x = 1
+TY01 pour tile y = 1
+CFFF pour blanc
