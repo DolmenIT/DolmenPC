@@ -1,18 +1,31 @@
 const screenshot = require('screenshot-desktop');
 const { PNG } = require('pngjs');
 const fs = require('fs');
+const path = require('path');
 
-let previousMiniature = null;
 
-function miniCapture(current, tileX, tileY, tileSize) {
-    x = tileX * tileSize;
-    y = tileY * tileSize;
-    // Implémentez votre logique ici
-    console.log(`Différence détectée à la position (${x}, ${y})`);
+let oldMiniature = null;
+
+function miniCapture(fullImg, newImg, tileX, tileY, tileSize) {
+    let startTileX = (tileX * tileSize);
+    let startTileY = (tileY * tileSize);
+    for (let y = 0; y < tileSize; y++) {
+        let copyY = ((startTileY + y) * fullImg.width);
+        for (let x = 0; x < tileSize; x++) {
+            let copyX = (startTileX + x);
+            let idxCopy = (copyY + copyX) * 4;
+
+            newImg.data[idxCopy] = fullImg.data[idxCopy];       // R
+            newImg.data[idxCopy + 1] = fullImg.data[idxCopy + 1]; // G
+            newImg.data[idxCopy + 2] = fullImg.data[idxCopy + 2]; // B
+            newImg.data[idxCopy + 3] = 255;                           // A
+        }
+    }
+
+    return newImg;
 }
 
-function createMiniature(imgBuffer, tileSize) {
-    const fullImg = PNG.sync.read(imgBuffer);
+function createMiniature(fullImg, tileSize) {
     const miniature = new PNG({ width: 240, height: 135 });
 
     for (let y = 0; y < fullImg.height; y += tileSize) {
@@ -30,27 +43,34 @@ function createMiniature(imgBuffer, tileSize) {
     return miniature;
 }
 
-function createDifferenceImage(current, previous, tileSize) {
+function createDifferenceImage(fullImg, currentMiniature, previousMiniature, tileSize) {
     const diffImg = new PNG({ width: 240, height: 135 });
+
+    let newImg = new PNG({ width: fullImg.width, height: fullImg.height });
+    let haveDifference = false;
 
     for (let y = 0; y < 135; y++) {
         for (let x = 0; x < 240; x++) {
             let idx = (y * 240 + x) << 2;
 
             // Calcul de la différence en RGB
-            const diffR = Math.abs(current.data[idx] - previous.data[idx]);
-            const diffG = Math.abs(current.data[idx + 1] - previous.data[idx + 1]);
-            const diffB = Math.abs(current.data[idx + 2] - previous.data[idx + 2]);
+            const diffR = Math.abs(currentMiniature.data[idx] - previousMiniature.data[idx]);
+            const diffG = Math.abs(currentMiniature.data[idx + 1] - previousMiniature.data[idx + 1]);
+            const diffB = Math.abs(currentMiniature.data[idx + 2] - previousMiniature.data[idx + 2]);
 
             const isDifferent = diffR > 0 || diffG > 0 || diffB > 0;
             if (isDifferent) {
-                diffImg.data[idx] = diffImg.data[idx + 1] = diffImg.data[idx + 2] = 255;
-                miniCapture(current, x, y, tileSize);
-            } else {
-                diffImg.data[idx] = diffImg.data[idx + 1] = diffImg.data[idx + 2] = 0;
+                newImg = miniCapture(fullImg, newImg, x, y, tileSize);
+                haveDifference = true;
             }
-            diffImg.data[idx + 3] = 255; // Alpha
         }
+    }
+
+    if (haveDifference) {
+        const newName = `new_${Date.now()}.png`;
+        const savePath = path.join('captures', newName); // Chemin complet du fichier
+        fs.writeFileSync(savePath, PNG.sync.write(newImg));
+        console.log("isdifferent");
     }
 
     return diffImg;
@@ -59,20 +79,28 @@ function createDifferenceImage(current, previous, tileSize) {
 
 function captureAndProcess() {
     screenshot({ format: 'png' }).then((imgBuffer) => {
-        const now = Math.floor(Date.now() / 1000);
-        const diffName = `difference_${now}.png`;
+        //const diffName = `difference_${Date.now()}.png`;
+        //const savePath = path.join('captures', diffName); // Chemin complet du fichier
 
         const tileSize = 8;
-        const currentMiniature = createMiniature(imgBuffer, tileSize);
+        const fullImg = PNG.sync.read(imgBuffer);
+
+        const currentMiniature = createMiniature(fullImg, tileSize);
         let diffImg;
 
-        if (previousMiniature) {
-            diffImg = createDifferenceImage(currentMiniature, previousMiniature, tileSize);
-            fs.writeFileSync(diffName, PNG.sync.write(diffImg));
+        if (oldMiniature) {
+            diffImg = createDifferenceImage(fullImg, currentMiniature, oldMiniature, tileSize);
+            //fs.writeFileSync(savePath, PNG.sync.write(diffImg)); // Utilisez savePath ici
         }
 
-        previousMiniature = currentMiniature;
+        oldMiniature = currentMiniature;
+
+        setInterval(() => { captureAndProcess() }, 100);
     });
 }
 
-setInterval(captureAndProcess, 1000);
+if (!fs.existsSync('captures')){
+    fs.mkdirSync('captures');
+}
+captureAndProcess();
+

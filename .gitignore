@@ -1,1 +1,4 @@
 node_modules
+captures/*.png
+public/*.m4s
+public/*.mpd

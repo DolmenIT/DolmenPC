@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live Stream Control</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+  <video id="video" controls></video>
+
+  <form id="configForm">
+    <label for="bv">Débit binaire (kbps):</label>
+    <input type="text" id="bv" name="bv" value="3000">
+    <button type="submit">Configurer</button>
+  </form>
+
+  <button id="startButton">Démarrer le Stream</button>
+  <button id="stopButton">Arrêter le Stream</button>
+
+  <div id="modal" style="display:none; position:fixed; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
+    <div style="background:white; padding:20px;">
+      <p id="modalText"></p>
+      <button onclick="document.getElementById('modal').style.display='none'">Fermer</button>
+    </div>
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    // ...
+    // const videoSrc = 'http://192.168.0.3:3000/playlist.m3u8'; // pour HLS
+    // ou
+    const videoSrc = 'http://192.168.0.3:3000/manifest.mpd'; // pour DASH
+    // ...
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(videoSrc);
+      hls.attachMedia(video);
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = videoSrc;
+    }
+
+    function showModal(message) {
+      document.getElementById('modalText').innerText = message;
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    document.getElementById('startButton').addEventListener('click', function() {
+      fetch('http://192.168.0.3:3000/start').then(response => {
+        showModal('Stream démarré');
+      });
+    });
+
+    document.getElementById('stopButton').addEventListener('click', function() {
+      fetch('http://192.168.0.3:3000/end').then(response => {
+        showModal('Stream arrêté');
+      });
+    });
+
+    document.getElementById('configForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      const bv = document.getElementById('bv').value;
+      fetch(`http://192.168.0.3:3000/config?bv=${bv}`).then(response => {
+        showModal('Configuration mise à jour');
+      });
+    });
+  </script>
+</body>
+</html>
